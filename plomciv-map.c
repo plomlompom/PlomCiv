@@ -147,7 +147,12 @@ void write_char (int key, struct Map * map, struct Cursor * cursor) {
 void save_map (struct Screen * screen, struct Map * map,
                char * filename) {
 // Write map to file.
-  int y;
+  int x, y;
+  for (y = 0; y < screen->rows; y++)
+    for (x = 0; x < screen->cols; x++)
+      mvaddch(y, x, ' ');
+  mvprintw(0, 0, "Writing map.");
+  refresh();
   int fd = open(filename, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
   char size = (char) map->rows;
   write(fd, &size, 1);
@@ -156,8 +161,9 @@ void save_map (struct Screen * screen, struct Map * map,
   for (y = 0; y < map->rows; y++)
     write(fd, map->map[y], map->cols);
   close(fd);
-  endwin();
-  exit(0); }
+  mvprintw(0, 0, "Map saved. Hit some key to continue.");
+  refresh();
+  getch(); }
 
 void fail(char * msg) {
 // Print error message and exit.

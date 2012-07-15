@@ -170,7 +170,7 @@ void usage() {
          "Key bindings:\n"
          "  arrow keys: move cursor\n"
          "  q:          quit\n"
-         "  s:          save\n"
+         "  s:          save and quit\n"
          "All other keys can be used to type into / edit the map.\n");
   exit(0); }
 

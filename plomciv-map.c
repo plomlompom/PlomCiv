@@ -122,7 +122,7 @@ void draw_map (struct Screen * screen, struct Map * map,
 
 void nav_map_cursor (int key, struct Map * map,
                      struct Cursor * cursor) {
-// Navigate map thorugh a cursor controlled by up/down/left/right keys.
+// Navigate map through a cursor controlled by up/down/left/right keys.
   if      (key == KEY_UP) {
     if      (cursor->y > cursor->starty)       cursor->y--;
     else if (map->offset_y > 0)                map->offset_y--;

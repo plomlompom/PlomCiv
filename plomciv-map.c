@@ -74,13 +74,13 @@ void init_map_screen (struct Map * map, struct Screen * screen) {
   map->offset_y = 0;
   map->offset_x = 0;
   if (map->rows > screen->rows)
-    map->offset_ymax = map->rows - screen->cols;
+    map->offset_ymax = map->rows - screen->rows;
   else
     map->offset_ymax = map->offset_y;
   if (map->cols > screen->cols)
     map->offset_xmax = map->rows - screen->cols;
   else
-   map->offset_xmax = map->offset_x; }
+    map->offset_xmax = map->offset_x; }
 
 struct Cursor init_cursor (struct Screen * screen, struct Map * map) {
 // Initialize cursor geometry.

@@ -164,9 +164,14 @@ void fail(char * msg) {
   exit(1); }
 
 void usage() {
-  printf("  PlomCiv map editor usage:\n"
+  printf("PlomCiv map editor usage:\n"
          "  $ plomciv-map MAPFILE (open existing map file)\n"
-         "  $ plomciv-map MAPFILE ROWS COLS (create new map file)\n");
+         "  $ plomciv-map MAPFILE ROWS COLS (create new map file)\n"
+         "Key bindings:\n"
+         "  arrow keys: move cursor\n"
+         "  q:          quit\n"
+         "  s:          save\n"
+         "All other keys can be used to type into / edit the map.\n");
   exit(0); }
 
 int main (int argc, char *argv[]) {

@@ -169,9 +169,10 @@ void usage() {
          "  $ plomciv-map MAPFILE ROWS COLS (create new map file)\n"
          "Key bindings:\n"
          "  arrow keys: move cursor\n"
-         "  q:          quit\n"
-         "  s:          save and quit\n"
-         "All other keys can be used to type into / edit the map.\n");
+         "           q: quit\n"
+         "           s: save and quit\n"
+         "All other free keys that can type ASCII characters"
+         "can be used to type into / edit the map.\n");
   exit(0); }
 
 int main (int argc, char *argv[]) {

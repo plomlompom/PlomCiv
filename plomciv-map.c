@@ -160,10 +160,12 @@ void save_map (struct Screen * screen, struct Map * map,
   exit(0); }
 
 void fail(char * msg) {
+// Print error message and exit.
   printf("%s\n", msg);
   exit(1); }
 
 void usage() {
+// Help message.
   printf("PlomCiv map editor usage:\n"
          "  $ plomciv-map MAPFILE (open existing map file)\n"
          "  $ plomciv-map MAPFILE ROWS COLS (create new map file)\n"

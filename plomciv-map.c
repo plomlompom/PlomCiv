@@ -1,4 +1,3 @@
-// #include "interface.c"
 #include <ncurses.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,7 +5,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-struct Screen {
+struct Window {
   WINDOW * window;
   int rows;
   int cols; };
@@ -30,15 +29,13 @@ struct Cursor {
   int select_y;
   int select_x; };
 
-struct Screen init_screen () {
-// Initialize screen.
-  struct Screen screen;
-  screen.window = initscr();
-  curs_set(0);
-  noecho();
-  keypad(screen.window, TRUE);
-  getmaxyx(screen.window, screen.rows, screen.cols);
-  return screen; }
+struct Window init_window(int rows, int cols, int y, int x) {
+// Initialize new Window struct.
+  struct Window window;
+  window.rows = rows;
+  window.cols = cols;
+  window.window = newwin(window.rows, window.cols, y, x);
+  return window; }
 
 struct Map new_map (int rows, int cols) {
 // Build new map matrix.
@@ -57,7 +54,7 @@ struct Map read_map (char * filename) {
 // Read in map matrix from file.
   int fd = open(filename, O_RDONLY);
   struct Map map;
-  char rows = 0, cols, y;
+  unsigned char rows = 0, cols, y;
   read(fd, &rows, 1);
   read(fd, &cols, 1);
   map.map = malloc(rows * sizeof(char *));
@@ -69,42 +66,42 @@ struct Map read_map (char * filename) {
   close(fd);
   return map; }
 
-void init_map_screen (struct Map * map, struct Screen * screen) {
-// Initialize map screen geometry.
+void init_mapwindow (struct Map * map, struct Window * window) {
+// Initialize map window geometry.
   map->offset_y = 0;
   map->offset_x = 0;
-  if (map->rows > screen->rows)
-    map->offset_ymax = map->rows - screen->rows;
+  if (map->rows > window->rows)
+    map->offset_ymax = map->rows - window->rows;
   else
     map->offset_ymax = map->offset_y;
-  if (map->cols > screen->cols)
-    map->offset_xmax = map->rows - screen->cols;
+  if (map->cols > window->cols)
+    map->offset_xmax = map->rows - window->cols;
   else
     map->offset_xmax = map->offset_x; }
 
-struct Cursor init_cursor (struct Screen * screen, struct Map * map) {
+struct Cursor init_cursor (struct Window * window, struct Map * map) {
 // Initialize cursor geometry.
   struct Cursor cursor;
-  if (map->rows < screen->rows)
+  if (map->rows < window->rows)
     cursor.ymax = map->rows - 1;
   else
-    cursor.ymax = screen->rows - 1;
-  if (map->cols < screen->cols)
+    cursor.ymax = window->rows - 1;
+  if (map->cols < window->cols)
     cursor.xmax = map->cols - 1;
   else
-    cursor.xmax = screen->cols - 1;
+    cursor.xmax = window->cols - 1;
   cursor.starty = cursor.ymax / 2;
   cursor.startx = cursor.xmax / 2;
   cursor.y = cursor.starty;
   cursor.x = cursor.startx;
   return cursor; }
 
-void draw_map (struct Screen * screen, struct Map * map,
+void draw_map (struct Window * window, struct Map * map,
                struct Cursor * cursor) {
-// Draw map onto screen; if cursor is set, highlight its position.
+// Draw map onto window; if cursor is set, highlight its position.
   int y, x, ch, map_yx[2];
-  for (y = 0; y < screen->rows; y++)
-    for (x = 0; x < screen->cols; x++) {
+  for (y = 0; y < window->rows; y++)
+    for (x = 0; x < window->cols; x++) {
       map_yx[0] = y + map->offset_y;
       map_yx[1] = x + map->offset_x;
       if (map_yx[0] >= map->rows || map_yx[1] >= map->cols)
@@ -117,8 +114,8 @@ void draw_map (struct Screen * screen, struct Map * map,
         cursor->select_y = map_yx[0];
         cursor->select_x = map_yx[1];
         ch = ch | A_REVERSE; }
-      mvaddch(y, x, ch); }
-  refresh(); }
+      mvwaddch(window->window, y, x, ch); }
+  wrefresh(window->window); }
 
 void nav_map_cursor (int key, struct Map * map,
                      struct Cursor * cursor) {
@@ -144,15 +141,19 @@ void write_char (int key, struct Map * map, struct Cursor * cursor) {
 // Write char to map at cursor selection.
   map->map[cursor->select_y][cursor->select_x] = key; }
 
-void save_map (struct Screen * screen, struct Map * map,
-               char * filename) {
+void update_status (struct Window * statuswin, char * text) {
+// Update status line with text.
+  int x;
+  for (x = 0; x < statuswin->cols; x++)
+    mvwaddch(statuswin->window, 0, x, ' ');
+  mvwprintw(statuswin->window, 0, 0, text);
+  wrefresh(statuswin->window); }
+
+void save_map (struct Window * window, struct Map * map,
+               char * filename, char * default_text) {
 // Write map to file.
   int x, y;
-  for (y = 0; y < screen->rows; y++)
-    for (x = 0; x < screen->cols; x++)
-      mvaddch(y, x, ' ');
-  mvprintw(0, 0, "Writing map.");
-  refresh();
+  update_status(window, "Saving map ...");
   int fd = open(filename, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
   char size = (char) map->rows;
   write(fd, &size, 1);
@@ -161,9 +162,9 @@ void save_map (struct Screen * screen, struct Map * map,
   for (y = 0; y < map->rows; y++)
     write(fd, map->map[y], map->cols);
   close(fd);
-  mvprintw(0, 0, "Map saved. Hit some key to continue.");
-  refresh();
-  getch(); }
+  update_status(window, "Map saved. Hit some key to continue.");
+  wgetch(window->window);
+  update_status(window, default_text); }
 
 void fail(char * msg) {
 // Print error message and exit.
@@ -201,20 +202,31 @@ int main (int argc, char *argv[]) {
       fail("Map file already exists. Delete first.");
     map = new_map(atoi(argv[2]), atoi(argv[3])); }
 
-  // Initialize map screen and cursor.
-  struct Screen screen = init_screen();
-  init_map_screen(&map, &screen);
-  struct Cursor cursor = init_cursor(&screen, &map);
+  // Initialize screen, status line, map window and cursor.
+  struct Window screen;
+  screen.window = initscr();
+  getmaxyx(screen.window, screen.rows, screen.cols);
+  curs_set(0);
+  cbreak();
+  noecho();
+  struct Window status = init_window(1, screen.cols, 0, 0);
+  char * status_msg = calloc(status.cols, sizeof(char));
+  snprintf(status_msg, status.cols, "PlomCiv map editor: %s", argv[1]);
+  update_status(&status, status_msg);
+  struct Window mapwindow = init_window(screen.rows - 1, screen.cols, 1, 0);
+  keypad(mapwindow.window, TRUE);
+  init_mapwindow(&map, &mapwindow);
+  struct Cursor cursor = init_cursor(&mapwindow, &map);
 
   // Map editing loop.
   int key;
   while (1) {
-    draw_map(&screen, &map, &cursor);
-    key = getch();
+    draw_map(&mapwindow, &map, &cursor);
+    key = wgetch(mapwindow.window);
     if (key == 'q')
       break;
     else if (key == 's')
-      save_map(&screen, &map, argv[1]);
+      save_map(&status, &map, argv[1], status_msg);
     else if (33 <= key && key <= 126)
       write_char(key, &map, &cursor);
     else {

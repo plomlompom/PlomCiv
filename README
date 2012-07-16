@@ -2,3 +2,5 @@ PlomCiv
 =======
 
 plomlompom tries to build his own ncurses-based Civilization-like game.
+
+Currently, there is only a rudimentary map editor.

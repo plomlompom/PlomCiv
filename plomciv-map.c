@@ -225,8 +225,9 @@ int main (int argc, char *argv[]) {
     key = wgetch(mapwindow.window);
     if (key == 'q')
       break;
-    else if (key == 's')
-      save_map(&status, &map, argv[1], status_msg);
+    else if (key == 's') {
+      draw_map(&mapwindow, &map, NULL);
+      save_map(&status, &map, argv[1], status_msg); }
     else if (33 <= key && key <= 126)
       write_char(key, &map, &cursor);
     else {

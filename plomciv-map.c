@@ -149,6 +149,45 @@ void update_status (struct Window * statuswin, char * text) {
   mvwprintw(statuswin->window, 0, 0, text);
   wrefresh(statuswin->window); }
 
+void save_as (struct Window * window, char filename[256]) {
+  int cursor = 0, max_x = 0, key, ch, x;
+  char tmp[256], intro[] = "New file name: ";
+  int len_intro = sizeof(intro);
+  for (x = 0; x < window->cols; x++)
+    mvwaddch(window->window, 0, x, ' ');
+  mvwprintw(window->window, 0, 0, intro);
+  for (x = 0; x < 256; x++)
+    filename[x] = 0;
+  while (1) {
+    for (x = 0; x < 256; x++) {
+      if (filename[x]) ch = filename[x];
+      else             ch = ' ';
+      if (x == cursor) ch = ch | A_REVERSE;
+      mvwaddch(window->window, 0, (len_intro + x) - 1, ch);
+      wrefresh(window->window); }
+    key = wgetch(window->window);
+    if ((32 <= key && key <= 126)) {
+      memcpy(tmp, filename, sizeof(tmp));
+      for (x = 0; x < cursor; x++)
+        filename[x] = tmp[x];
+      filename[cursor] = key;
+      for (x = cursor; x < (sizeof(tmp) - 1); x++)
+        filename[x + 1] = tmp[x];
+      cursor++;
+      max_x++; }
+    else if (key == KEY_BACKSPACE && cursor > 0) {
+      memcpy(tmp, filename, sizeof(tmp));
+      for (x = 0; x < cursor - 1; x++)
+        filename[x] = tmp[x];
+      for (x = cursor; x < (sizeof(tmp) - 1); x++)
+        filename[x - 1] = tmp[x];
+      filename[x++] = 0;
+      cursor--;
+      max_x--; }
+    else if (key == KEY_LEFT  && cursor > 0)     cursor--;
+    else if (key == KEY_RIGHT && cursor < max_x) cursor++;
+    else if (key == '\n') break; } }
+
 void save_map (struct Window * window, struct Map * map,
                char * filename, char * default_text) {
 // Write map to file.
@@ -213,6 +252,7 @@ int main (int argc, char *argv[]) {
   char * status_msg = calloc(status.cols, sizeof(char));
   snprintf(status_msg, status.cols, "PlomCiv map editor: %s", argv[1]);
   update_status(&status, status_msg);
+  keypad(status.window, TRUE);
   struct Window mapwindow = init_window(screen.rows - 1, screen.cols, 1, 0);
   keypad(mapwindow.window, TRUE);
   init_mapwindow(&map, &mapwindow);
@@ -220,6 +260,7 @@ int main (int argc, char *argv[]) {
 
   // Map editing loop.
   int key;
+  char tmp_str[256];
   while (1) {
     draw_map(&mapwindow, &map, &cursor);
     key = wgetch(mapwindow.window);
@@ -228,10 +269,17 @@ int main (int argc, char *argv[]) {
     else if (key == 's') {
       draw_map(&mapwindow, &map, NULL);
       save_map(&status, &map, argv[1], status_msg); }
-    else if (33 <= key && key <= 126)
+    else if (key == 'n') {
+      draw_map(&mapwindow, &map, NULL);
+      save_as(&status, tmp_str);
+      if (strlen(tmp_str))
+        argv[1] = tmp_str;
+      snprintf(status_msg, status.cols, "PlomCiv map editor: %s", argv[1]);
+      save_map(&status, &map, argv[1], status_msg); }
+    else if (32 <= key && key <= 126)
       write_char(key, &map, &cursor);
-    else {
-      nav_map_cursor(key, &map, &cursor); } }
+    else
+      nav_map_cursor(key, &map, &cursor); }
 
   // Clean up.
   endwin();

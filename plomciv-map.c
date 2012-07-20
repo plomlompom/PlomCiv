@@ -150,14 +150,19 @@ void update_status (struct Window * statuswin, char * text) {
   wrefresh(statuswin->window); }
 
 void save_as (struct Window * window, char filename[256]) {
+// Replace file name in status line.
   int cursor = 0, max_x = 0, key, ch, x;
-  char tmp[256], intro[] = "New file name: ";
+  char tmp[256], intro[] = "File name: ";
   int len_intro = sizeof(intro);
+
+  // Initialize file name editor.
   for (x = 0; x < window->cols; x++)
     mvwaddch(window->window, 0, x, ' ');
   mvwprintw(window->window, 0, 0, intro);
   for (x = 0; x < 256; x++)
     filename[x] = 0;
+
+  // Loop: print current filename, collect key press.
   while (1) {
     for (x = 0; x < 256; x++) {
       if (filename[x]) ch = filename[x];
@@ -166,6 +171,8 @@ void save_as (struct Window * window, char filename[256]) {
       mvwaddch(window->window, 0, (len_intro + x) - 1, ch);
       wrefresh(window->window); }
     key = wgetch(window->window);
+
+    // Enter printable ASCII chars.
     if ((32 <= key && key <= 126)) {
       memcpy(tmp, filename, sizeof(tmp));
       for (x = 0; x < cursor; x++)
@@ -175,6 +182,8 @@ void save_as (struct Window * window, char filename[256]) {
         filename[x + 1] = tmp[x];
       cursor++;
       max_x++; }
+
+    // Delete char before cursor with BACKSPACE.
     else if (key == KEY_BACKSPACE && cursor > 0) {
       memcpy(tmp, filename, sizeof(tmp));
       for (x = 0; x < cursor - 1; x++)
@@ -184,9 +193,14 @@ void save_as (struct Window * window, char filename[256]) {
       filename[x++] = 0;
       cursor--;
       max_x--; }
+
+    // Navigate cursor left / right.
     else if (key == KEY_LEFT  && cursor > 0)     cursor--;
     else if (key == KEY_RIGHT && cursor < max_x) cursor++;
-    else if (key == '\n') break; } }
+
+    // Finish with ENTER.
+    else if (key == '\n')
+      break; } }
 
 void save_map (struct Window * window, struct Map * map,
                char * filename, char * default_text) {
@@ -241,18 +255,22 @@ int main (int argc, char *argv[]) {
       fail("Map file already exists. Delete first.");
     map = new_map(atoi(argv[2]), atoi(argv[3])); }
 
-  // Initialize screen, status line, map window and cursor.
+  // Initialize screen.
   struct Window screen;
   screen.window = initscr();
   getmaxyx(screen.window, screen.rows, screen.cols);
   curs_set(0);
   cbreak();
   noecho();
+
+  // Initialize status line.
   struct Window status = init_window(1, screen.cols, 0, 0);
   char * status_msg = calloc(status.cols, sizeof(char));
   snprintf(status_msg, status.cols, "PlomCiv map editor: %s", argv[1]);
   update_status(&status, status_msg);
   keypad(status.window, TRUE);
+
+  // Initialize map window and map window cursor.
   struct Window mapwindow = init_window(screen.rows - 1, screen.cols, 1, 0);
   keypad(mapwindow.window, TRUE);
   init_mapwindow(&map, &mapwindow);

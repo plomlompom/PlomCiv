@@ -60,7 +60,7 @@ struct Map read_map (char * filename) {
   read(fd, &cols, 1);
   map.map = malloc(rows * sizeof(char *));
   for (y = 0; y < rows; y++) {
-    map.map[y] = malloc(cols * sizeof(char));
+    map.map[y] = calloc(cols, sizeof(char));
     read(fd, map.map[y], cols); }
   map.rows = rows;
   map.cols = cols;

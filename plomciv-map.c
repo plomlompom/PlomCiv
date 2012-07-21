@@ -372,12 +372,12 @@ int main (int argc, char *argv[]) {
         argv[1] = tmp_str;
       snprintf(status_msg, status.cols, "PlomCiv map editor: %s", argv[1]);
       save_map(&status, &map, argv[1], status_msg); }
+    else if (key == 'x')
+      write_char(brush, &map, &cursor);
     else if (key == 'X') {
       brush = select_terrain(&mapwindow, &screen, brush);
       snprintf(status_msg, status.cols, "[%c] PlomCiv map editor: %s", brush, argv[1]);
       update_status(&status, status_msg); }
-    else if (key == 'x')
-      write_char(brush, &map, &cursor);
     else
       nav_map_cursor(key, &map, &cursor, 0); }
 

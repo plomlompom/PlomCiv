@@ -311,9 +311,7 @@ void usage() {
          "           s: save to current file name\n"
          "           S: save to new file name\n"
          "           x: write currently selected terrain\n"
-         "           X: change terrain selection\n"
-         "All other free keys that can type ASCII characters"
-         "can be used to type into / edit the map.\n");
+         "           X: change terrain selection\n");
   exit(0); }
 
 int main (int argc, char *argv[]) {

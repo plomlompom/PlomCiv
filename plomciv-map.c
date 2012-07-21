@@ -341,9 +341,10 @@ int main (int argc, char *argv[]) {
   noecho();
 
   // Initialize status line.
+  char brush = '~';
   struct Window status = init_window(1, screen.cols, 0, 0);
   char * status_msg = calloc(status.cols, sizeof(char));
-  snprintf(status_msg, status.cols, "PlomCiv map editor: %s", argv[1]);
+  snprintf(status_msg, status.cols, "[%c] PlomCiv map editor: %s", brush, argv[1]);
   update_status(&status, status_msg);
   keypad(status.window, TRUE);
 
@@ -355,7 +356,7 @@ int main (int argc, char *argv[]) {
 
   // Map editing loop.
   int key;
-  char brush = '~', tmp_str[256];
+  char tmp_str[256];
   while (1) {
     draw_map(&mapwindow, &map, &cursor, 0);
     key = wgetch(mapwindow.window);
@@ -371,8 +372,10 @@ int main (int argc, char *argv[]) {
         argv[1] = tmp_str;
       snprintf(status_msg, status.cols, "PlomCiv map editor: %s", argv[1]);
       save_map(&status, &map, argv[1], status_msg); }
-    else if (key == 'X')
+    else if (key == 'X') {
       brush = select_terrain(&mapwindow, &screen, brush);
+      snprintf(status_msg, status.cols, "[%c] PlomCiv map editor: %s", brush, argv[1]);
+      update_status(&status, status_msg); }
     else if (key == 'x')
       write_char(brush, &map, &cursor);
     else

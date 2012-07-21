@@ -23,8 +23,8 @@ struct Map {
 struct Cursor {
   int y;
   int x;
-  int starty;
-  int startx;
+  int midy;
+  int midx;
   int ymax;
   int xmax;
   int select_y;
@@ -91,10 +91,10 @@ struct Cursor init_cursor (struct Window * window, struct Map * map) {
     cursor.xmax = map->cols - 1;
   else
     cursor.xmax = window->cols - 1;
-  cursor.starty = cursor.ymax / 2;
-  cursor.startx = cursor.xmax / 2;
-  cursor.y = cursor.starty;
-  cursor.x = cursor.startx;
+  cursor.midy = cursor.ymax / 2;
+  cursor.midx = cursor.xmax / 2;
+  cursor.y = cursor.midy;
+  cursor.x = cursor.midx;
   return cursor; }
 
 void draw_map (struct Window * window, struct Map * map,
@@ -122,20 +122,20 @@ void nav_map_cursor (int key, struct Map * map,
                      struct Cursor * cursor, char select_type) {
 // Navigate map through a cursor controlled by up/down/left/right keys.
   if      (key == KEY_UP) {
-    if      (cursor->y > cursor->starty)       cursor->y--;
+    if      (cursor->y > cursor->midy)         cursor->y--;
     else if (map->offset_y > 0)                map->offset_y--;
     else if (cursor->y > 0)                    cursor->y--; }
   else if (key == KEY_DOWN) {
-    if      (cursor->y < cursor->starty)       cursor->y++;
+    if      (cursor->y < cursor->midy)         cursor->y++;
     else if (map->offset_y < map->offset_ymax) map->offset_y++;
     else if (cursor->y < cursor->ymax)         cursor->y++; }
   else if (!select_type) {
     if (key == KEY_LEFT) {
-      if      (cursor->x > cursor->startx)       cursor->x--;
+      if      (cursor->x > cursor->midx)         cursor->x--;
       else if (map->offset_x > 0)                map->offset_x--;
       else if (cursor->x > 0)                    cursor->x--; }
     else if (key == KEY_RIGHT) {
-      if      (cursor->x < cursor->startx)       cursor->x++;
+      if      (cursor->x < cursor->midx)         cursor->x++;
       else if (map->offset_x < map->offset_xmax) map->offset_x++;
       else if (cursor->x < cursor->xmax)         cursor->x++; } }
   else {

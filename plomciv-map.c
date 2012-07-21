@@ -30,6 +30,25 @@ struct Cursor {
   int select_y;
   int select_x; };
 
+void fail(char * msg) {
+// Print error message and exit.
+  printf("%s\n", msg);
+  exit(1); }
+
+void usage() {
+// Help message.
+  printf("PlomCiv map editor usage:\n"
+         "  $ plomciv-map MAPFILE (open existing map file)\n"
+         "  $ plomciv-map MAPFILE ROWS COLS (create new map file)\n"
+         "Key bindings:\n"
+         "  arrow keys: move cursor\n"
+         "           q: quit\n"
+         "           s: save to current file name\n"
+         "           S: save to new file name\n"
+         "           x: write currently selected terrain\n"
+         "           X: change terrain selection\n");
+  exit(0); }
+
 struct Window init_window(int rows, int cols, int y, int x) {
 // Initialize new Window struct.
   struct Window window;
@@ -53,15 +72,17 @@ struct Map new_map (int rows, int cols) {
 
 struct Map read_map (char * filename) {
 // Read in map matrix from file.
-  int fd = open(filename, O_RDONLY);
+  int bytes_read, fd = open(filename, O_RDONLY);
   struct Map map;
   unsigned char rows = 0, cols, y;
   read(fd, &rows, 1);
   read(fd, &cols, 1);
   map.map = malloc(rows * sizeof(char *));
   for (y = 0; y < rows; y++) {
-    map.map[y] = calloc(cols, sizeof(char));
-    read(fd, map.map[y], cols); }
+    map.map[y] = malloc(cols * sizeof(char));
+    bytes_read = read(fd, map.map[y], cols);
+    if (-1 == bytes_read || bytes_read < cols)
+      fail("Error: map file smaller than it says."); }
   map.rows = rows;
   map.cols = cols;
   close(fd);
@@ -294,25 +315,6 @@ char select_terrain (struct Window * window, struct Window * screen, char brush)
   // Finish only after freeing allocated memory.
   drop_map(&map);
   return brush; }
-
-void fail(char * msg) {
-// Print error message and exit.
-  printf("%s\n", msg);
-  exit(1); }
-
-void usage() {
-// Help message.
-  printf("PlomCiv map editor usage:\n"
-         "  $ plomciv-map MAPFILE (open existing map file)\n"
-         "  $ plomciv-map MAPFILE ROWS COLS (create new map file)\n"
-         "Key bindings:\n"
-         "  arrow keys: move cursor\n"
-         "           q: quit\n"
-         "           s: save to current file name\n"
-         "           S: save to new file name\n"
-         "           x: write currently selected terrain\n"
-         "           X: change terrain selection\n");
-  exit(0); }
 
 int main (int argc, char *argv[]) {
 

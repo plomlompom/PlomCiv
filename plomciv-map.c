@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#define LINEBUF_MAX 1024
 
 struct Window {
   WINDOW * window;
@@ -75,7 +76,7 @@ void init_mapwindow (struct Map * map, struct Window * window) {
   else
     map->offset_ymax = map->offset_y;
   if (map->cols > window->cols)
-    map->offset_xmax = map->rows - window->cols;
+    map->offset_xmax = map->cols - window->cols;
   else
     map->offset_xmax = map->offset_x; }
 
@@ -97,7 +98,7 @@ struct Cursor init_cursor (struct Window * window, struct Map * map) {
   return cursor; }
 
 void draw_map (struct Window * window, struct Map * map,
-               struct Cursor * cursor) {
+               struct Cursor * cursor, char select_type) {
 // Draw map onto window; if cursor is set, highlight its position.
   int y, x, ch, map_yx[2];
   for (y = 0; y < window->rows; y++)
@@ -110,32 +111,40 @@ void draw_map (struct Window * window, struct Map * map,
         ch = map->map[map_yx[0]][map_yx[1]];
       else
         ch = '%';
-      if (cursor && y == cursor->y && x == cursor->x) {
-        cursor->select_y = map_yx[0];
-        cursor->select_x = map_yx[1];
-        ch = ch | A_REVERSE; }
+      if (cursor && y == cursor->y &&
+         ( (!select_type && x == cursor->x) || select_type ) ) {
+          cursor->select_y = map_yx[0];
+          if (!select_type)
+            cursor->select_x = map_yx[1];
+          ch = ch | A_REVERSE; }
       mvwaddch(window->window, y, x, ch); }
   wrefresh(window->window); }
 
 void nav_map_cursor (int key, struct Map * map,
-                     struct Cursor * cursor) {
+                     struct Cursor * cursor, char select_type) {
 // Navigate map through a cursor controlled by up/down/left/right keys.
   if      (key == KEY_UP) {
     if      (cursor->y > cursor->starty)       cursor->y--;
     else if (map->offset_y > 0)                map->offset_y--;
     else if (cursor->y > 0)                    cursor->y--; }
-  else if (key == KEY_LEFT) {
-    if      (cursor->x > cursor->startx)       cursor->x--;
-    else if (map->offset_x > 0)                map->offset_x--;
-    else if (cursor->x > 0)                    cursor->x--; }
   else if (key == KEY_DOWN) {
     if      (cursor->y < cursor->starty)       cursor->y++;
     else if (map->offset_y < map->offset_ymax) map->offset_y++;
     else if (cursor->y < cursor->ymax)         cursor->y++; }
-  else if (key == KEY_RIGHT) {
-    if      (cursor->x < cursor->startx)       cursor->x++;
-    else if (map->offset_x < map->offset_xmax) map->offset_x++;
-    else if (cursor->x < cursor->xmax)         cursor->x++; } }
+  else if (!select_type) {
+    if (key == KEY_LEFT) {
+      if      (cursor->x > cursor->startx)       cursor->x--;
+      else if (map->offset_x > 0)                map->offset_x--;
+      else if (cursor->x > 0)                    cursor->x--; }
+    else if (key == KEY_RIGHT) {
+      if      (cursor->x < cursor->startx)       cursor->x++;
+      else if (map->offset_x < map->offset_xmax) map->offset_x++;
+      else if (cursor->x < cursor->xmax)         cursor->x++; } }
+  else {
+    if (key == KEY_LEFT && map->offset_x > 0)
+      map->offset_x--;
+    else if (key == KEY_RIGHT && map->offset_x < map->offset_xmax)
+      map->offset_x++; } }
 
 void write_char (int key, struct Map * map, struct Cursor * cursor) {
 // Write char to map at cursor selection.
@@ -219,6 +228,75 @@ void save_map (struct Window * window, struct Map * map,
   wgetch(window->window);
   update_status(window, default_text); }
 
+void drop_map (struct Map * map) {
+// Free memory for map.
+  int y;
+  for (y = 0; y < map->rows; y++)
+    free(map->map[y]);
+  free(map->map); }
+
+struct Map map_from_lines (char ** lines, int rows) {
+// Build map from string lines (of possibly unequal length).
+  int y, x;
+  struct Map map;
+  map.rows = rows;
+
+  // Determine map column number from max line length.
+  map.cols = 0;
+  for (y = 0; y < map.rows; y++) {
+    x = strlen(lines[y]);
+    if (x > map.cols)
+      map.cols = x; }
+  map.cols = map.cols - 1;
+
+  // Write lines to map.
+  map.map = malloc(map.rows * sizeof(char *));
+  for (y = 0; y < map.rows; y++)
+    map.map[y] = calloc(map.cols, sizeof(char));
+  for (y = 0; y < map.rows; y++)
+    memcpy(map.map[y], lines[y], strlen(lines[y]) - 1);
+  return map; }
+
+char select_terrain (struct Window * window, struct Window * screen, char brush) {
+// Select terrain to paint with cursor.
+
+  // Read in terrain file.
+  FILE * file = fopen("terrains", "r");
+  int i, ii;
+  char buf[LINEBUF_MAX], ** lines;
+  for (i = 0; fgets(buf, LINEBUF_MAX, file); i++);
+  rewind(file);
+  lines = malloc(i * sizeof(char *));
+  for (i = 0; fgets(buf, LINEBUF_MAX, file); i++) {
+    lines[i] = calloc(strlen(buf), sizeof(char));
+    memcpy(lines[i], buf, strlen(buf)); }
+  fclose(file);
+  struct Map map = map_from_lines(lines, i);
+  for (ii = 0; ii < i; ii++)
+    free(lines[ii]);
+  free(lines);
+
+  // Initialization of map, cursor.
+  init_mapwindow(&map, window);
+  struct Cursor cursor = init_cursor(window, &map);
+  cursor.y = 0;
+
+  // Terrain selection loop.
+  int key;
+  while (1) {
+    draw_map(window, &map, &cursor, 1);
+    key = wgetch(window->window);
+    if (key == 'q')
+      break;
+    else if (key == '\n') {
+      brush = map.map[cursor.select_y][0];
+      break; }
+    nav_map_cursor(key, &map, &cursor, 1); }
+
+  // Finish only after freeing allocated memory.
+  drop_map(&map);
+  return brush; }
+
 void fail(char * msg) {
 // Print error message and exit.
   printf("%s\n", msg);
@@ -232,7 +310,10 @@ void usage() {
          "Key bindings:\n"
          "  arrow keys: move cursor\n"
          "           q: quit\n"
-         "           s: save and quit\n"
+         "           s: save to current file name\n"
+         "           S: save to new file name\n"
+         "           x: write currently selected terrain\n"
+         "           X: change terrain selection\n"
          "All other free keys that can type ASCII characters"
          "can be used to type into / edit the map.\n");
   exit(0); }
@@ -278,26 +359,28 @@ int main (int argc, char *argv[]) {
 
   // Map editing loop.
   int key;
-  char tmp_str[256];
+  char brush = '~', tmp_str[256];
   while (1) {
-    draw_map(&mapwindow, &map, &cursor);
+    draw_map(&mapwindow, &map, &cursor, 0);
     key = wgetch(mapwindow.window);
     if (key == 'q')
       break;
     else if (key == 's') {
-      draw_map(&mapwindow, &map, NULL);
+      draw_map(&mapwindow, &map, &cursor, 0);
       save_map(&status, &map, argv[1], status_msg); }
-    else if (key == 'n') {
-      draw_map(&mapwindow, &map, NULL);
+    else if (key == 'S') {
+      draw_map(&mapwindow, &map, 0, 0);
       save_as(&status, tmp_str);
       if (strlen(tmp_str))
         argv[1] = tmp_str;
       snprintf(status_msg, status.cols, "PlomCiv map editor: %s", argv[1]);
       save_map(&status, &map, argv[1], status_msg); }
-    else if (32 <= key && key <= 126)
-      write_char(key, &map, &cursor);
+    else if (key == 'X')
+      brush = select_terrain(&mapwindow, &screen, brush);
+    else if (key == 'x')
+      write_char(brush, &map, &cursor);
     else
-      nav_map_cursor(key, &map, &cursor); }
+      nav_map_cursor(key, &map, &cursor, 0); }
 
   // Clean up.
   endwin();

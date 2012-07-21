@@ -105,12 +105,10 @@ void draw_map (struct Window * window, struct Map * map,
     for (x = 0; x < window->cols; x++) {
       map_yx[0] = y + map->offset_y;
       map_yx[1] = x + map->offset_x;
-      if (map_yx[0] >= map->rows || map_yx[1] >= map->cols)
-        ch = ' ';
-      else if (map->map[map_yx[0]][map_yx[1]])
+      ch = ' ';
+      if (map_yx[0] < map->rows && map_yx[1] < map->cols
+          && map->map[map_yx[0]][map_yx[1]])
         ch = map->map[map_yx[0]][map_yx[1]];
-      else
-        ch = '%';
       if (cursor && y == cursor->y &&
          ( (!select_type && x == cursor->x) || select_type ) ) {
           cursor->select_y = map_yx[0];
